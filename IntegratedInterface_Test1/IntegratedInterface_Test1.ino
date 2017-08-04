@@ -27,6 +27,7 @@ int COLD_LED = 12; // LED pin for "too cold" alarm
 //7-Seg. Display Variables
 Adafruit_7segment matrix = Adafruit_7segment();
 boolean sevseg_on = false;
+
 //int SEVSEG_PWR_PIN = A5; 
 // temp parameters
 int setTemp = 34; 
@@ -41,6 +42,11 @@ OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire); 
 
 float currentTemp; //temperature measurement
+boolean showCurrentTemp = true; 
+long prevMs = 0; // set up timer
+
+int dispDelay = 1000; // milliseconds to allow set temp interactions without displaying current temperature (simulated multi-threading)
+int debouncer = 400; // milliseconds to delay code for debouncing
 
 void setup() {
   // put your setup code here, to run once:
@@ -65,37 +71,39 @@ void setup() {
 void loop() {
 // Power button code
   int power_current = analogRead(PWR_BUTTON_PIN); // read power button state
-  if (power_current >= 1000 && power_last_state <= 50) {
+  if (power_current >= 1000 && power_last_state <= 50) { // if power button is pressed
     if (sevseg_on){
-      turnOffDisp(); 
+      turnOffDisp(); // turn off display if it is on
       sevseg_on = false;
     }
     else{
-      currentTempUpdate(); 
+      currentTempUpdate(); // turn on display if it was off
       sevseg_on = true;
     }
   }
   power_last_state = power_current; // refresh button state in memory
   if (sevseg_on) {
-    currentTempUpdate();  
-
-     // 7-Seg. Display Code
+    if (showCurrentTemp){
+      currentTempUpdate(); // only show current temperature if the display is on and the user is not changing the set temp
+    }
+ 
+      // 7-Seg. Display Code
     upTemp = analogRead(UP_BUTTON_PIN); // get signal fom membrane switch (up arrow)
     downTemp = analogRead(DOWN_BUTTON_PIN); //get signal from membrane switch (down arrow)
     if (upTemp >= 1000 && setTemp < maxTemp) {  // condition that membrane switch is high (pressed) and that the desired set temp is less than max
-  //    insert debouncing code here if necessary
       setTemp = setTemp+1; // increment set temperature by 1
-      setTempUpdate();
-      delay(400); // debouncing
     }
     if (downTemp >= 1000 && setTemp > minTemp){ //condition that membrane switch is high (pressed) and that desired set temp is greater than min
       setTemp = setTemp-1; // increment set temperature by -1
-      setTempUpdate(); 
-      delay(400); // debouncing
     }
-    if (upTemp >= 1000 && setTemp == maxTemp || downTemp >= 1000 && setTemp == minTemp){
-      setTempUpdate(); 
-      delay(400);
+    if (upTemp >= 1000 || downTemp >= 1000){
+      setTempUpdate(); // show temp even when already at min/ max
+      showCurrentTemp = false; //pause currentTemp updates
+      prevMs = millis(); //get time of latest setTemp button press
+    }
+    unsigned long newMs = millis(); 
+    if(newMs - prevMs > dispDelay){ // check if enough time has passed since latest setTemp button press
+      showCurrentTemp = true; // if so, allow current temp display again
     }
   }
 
@@ -110,14 +118,13 @@ void loop() {
 }
 
 void setTempUpdate() {
-//  matrix.print(setTemp);
   int setTemp_tens = setTemp/10; 
   int setTemp_ones = setTemp%10;
   matrix.writeDigitNum(0, setTemp_tens);
   matrix.writeDigitNum(1, setTemp_ones, false);
   matrix.writeDigitRaw(3,0);
   matrix.writeDisplay(); // refreshes display with new content
-  delay(1000);
+  delay(debouncer);
 }
 
 void currentTempUpdate() {
