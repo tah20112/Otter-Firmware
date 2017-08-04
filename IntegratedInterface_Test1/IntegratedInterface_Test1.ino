@@ -75,10 +75,30 @@ void loop() {
       sevseg_on = true;
     }
   }
-  if (sevseg_on) {
-     currentTempUpdate();  
-  }
   power_last_state = power_current; // refresh button state in memory
+  if (sevseg_on) {
+    currentTempUpdate();  
+
+     // 7-Seg. Display Code
+    upTemp = analogRead(UP_BUTTON_PIN); // get signal fom membrane switch (up arrow)
+    downTemp = analogRead(DOWN_BUTTON_PIN); //get signal from membrane switch (down arrow)
+    if (upTemp >= 1000 && setTemp < maxTemp) {  // condition that membrane switch is high (pressed) and that the desired set temp is less than max
+  //    insert debouncing code here if necessary
+      setTemp = setTemp+1; // increment set temperature by 1
+      setTempUpdate();
+      delay(400); // debouncing
+    }
+    if (downTemp >= 1000 && setTemp > minTemp){ //condition that membrane switch is high (pressed) and that desired set temp is greater than min
+      setTemp = setTemp-1; // increment set temperature by -1
+      setTempUpdate(); 
+      delay(400); // debouncing
+    }
+    if (upTemp >= 1000 && setTemp == maxTemp || downTemp >= 1000 && setTemp == minTemp){
+      setTempUpdate(); 
+      delay(400);
+    }
+  }
+
 
 // Alarm button code
   int alarm_current = analogRead(ALARM_BUTTON_PIN);  // read alarm button state
@@ -87,24 +107,6 @@ void loop() {
   }
   alarm_last_state = alarm_current; // refresh button state in memory
   
-// 7-Seg. Display Code
-  upTemp = analogRead(UP_BUTTON_PIN); // get signal fom membrane switch (up arrow)
-  downTemp = analogRead(DOWN_BUTTON_PIN); //get signal from membrane switch (down arrow)
-  if (upTemp >= 1000 && setTemp < maxTemp) {  // condition that membrane switch is high (pressed) and that the desired set temp is less than max
-//    insert debouncing code here if necessary
-    setTemp = setTemp+1; // increment set temperature by 1
-    setTempUpdate();
-    delay(400); // debouncing
-  }
-  if (downTemp >= 1000 && setTemp > minTemp){ //condition that membrane switch is high (pressed) and that desired set temp is greater than min
-    setTemp = setTemp-1; // increment set temperature by -1
-    setTempUpdate(); 
-    delay (400); // debouncing
-  }
-//  Serial.print("Analog Read: "); 
-//  Serial.print(upTemp); 
-//  Serial.print(" Set Temp: "); 
-//  Serial.println(setTemp);   
 }
 
 void setTempUpdate() {
