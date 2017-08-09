@@ -6,20 +6,23 @@ int tim = 2000; //the value of delay time for display
 LiquidCrystal_I2C lcd(0x27,16,2); // set the LCD address to 0x27 for a 16 chars and 2 line display
 
 // which analog pin to connect
-#define THERMISTORPIN A0         
+#define THERMISTORPIN1 A0
+#define THERMISTORPIN2 A1
+#define THERMISTORPIN3 A2         
 // resistance at 25 degrees C
 #define THERMISTORNOMINAL 10000      
 // temp. for nominal resistance (almost always 25 C)
 #define TEMPERATURENOMINAL 25   
 // how many samples to take and average, more takes longer
 // but is more 'smooth'
-#define NUMSAMPLES 5
+#define NUMSAMPLES 3
 // The beta coefficient of the thermistor (usually 3000-4000)
 #define BCOEFFICIENT 3950
 // the value of the 'other' resistor
 #define SERIESRESISTOR 10000    
  
 uint16_t samples[NUMSAMPLES];
+uint16_t num_thermistors = 3; 
 
 void setup()
 {
@@ -36,17 +39,19 @@ void loop(void) {
   float average;
  
   // take N samples in a row, with a slight delay
-  for (i=0; i< NUMSAMPLES; i++) {
-   samples[i] = analogRead(THERMISTORPIN);
+  for (i=0; i< NUMSAMPLES*num_thermistors; i+=num_thermistors) {
+   samples[i] = analogRead(THERMISTORPIN1);
+   samples[i+1]= analogRead(THERMISTORPIN2);
+   samples[i+2]= analogRead(THERMISTORPIN3);
    delay(10);
   }
  
   // average all the samples out
   average = 0;
-  for (i=0; i< NUMSAMPLES; i++) {
+  for (i=0; i< NUMSAMPLES*num_thermistors; i++) {
      average += samples[i];
   }
-  average /= NUMSAMPLES;
+  average /= NUMSAMPLES*num_thermistors;
  
   Serial.print("Average analog reading "); 
   Serial.println(average);
