@@ -5,10 +5,12 @@
 #include <Adafruit_GFX.h>
 #include "Adafruit_LEDBackpack.h"
 
-//Temperature probe libraries - Using DS18B20 thermometer
-#include <DallasTemperature.h> // Temperature probe processing library
-#include <OneWire.h> // Temperature probe reading library
-#include <math.h> // Arduino library for # processing
+// Thermistor Parameters
+#define THERMISTORNOMINAL 10000 // resistance at 25 degrees C      
+#define TEMPERATURENOMINAL 25   // temp. for nominal resistance (almost always 25 C)
+#define NUMSAMPLES 5            // how many samples to take and average, more takes longer, but is more "smooth"
+#define BCOEFFICIENT 3950       // The beta coefficient of the thermistor (usually 3000-4000)
+#define SERIESRESISTOR 10000    // the value of the 'other' resistor
 
 //Button Variables
 int PWR_BUTTON_PIN = A3; 
@@ -37,9 +39,8 @@ int minTemp = 28;
 int maxTemp = 38;
 
 //Temperature reading setup
-#define ONE_WIRE_BUS 7
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire); 
+int THERMISTOR_PIN = A5;
+uint16_t sample[NUMSAMPLES];
 
 float currentTemp; //temperature measurement
 boolean showCurrentTemp = true; 
@@ -62,10 +63,7 @@ void setup() {
   #endif
   matrix.begin(0x70); // begins I2C communication with seven segment display
   matrix.setBrightness(3); // sets brightness, on scale of 0 (dim) to 15 (bright)
-  turnOffDisp();
-
-  //Temperature probe
-  sensors.begin(); 
+  turnOffDisp(); 
 }
 
 void loop() {
@@ -140,8 +138,30 @@ void currentTempUpdate() {
 }
 
 float get_temperature() { //Receive temperature measurement
-  sensors.requestTemperatures();
-  return sensors.getTempCByIndex(0);
+  uint8_t i;
+  float average; 
+  for (i=0; i< NUMSAMPLES; i++) {
+    sample[i]= analogRead(THERMISTOR_PIN);
+    delay(50);
+  }
+  for (i=0; i< NUMSAMPLES; i++) {
+     average += sample[i];
+  }
+  average /= NUMSAMPLES;
+  average = 1023 / average - 1;
+  average = SERIESRESISTOR / average;
+  Serial.print("Thermistor resistance "); 
+  Serial.println(average);
+ 
+  float steinhart;
+  steinhart = average / THERMISTORNOMINAL;     // (R/Ro)
+  steinhart = log(steinhart);                  // ln(R/Ro)
+  steinhart /= BCOEFFICIENT;                   // 1/B * ln(R/Ro)
+  steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
+  steinhart = 1.0 / steinhart;                 // Invert
+  steinhart -= 273.15;                         // convert to C
+  
+  return steinhart;
 }
 void turnOffDisp(){
     for (int i=0; i<=4; i++){
