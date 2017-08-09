@@ -108,7 +108,7 @@ void loop() {
   }
 
 
-// Alarm button code
+// Alarm button code -- WILL ALARM EVEN WHEN DISPLAY IS NOT ON
   int alarm_current = analogRead(ALARM_BUTTON_PIN);  // read alarm button state
   if (alarm_current >= 1000 && alarm_last_state <= 50) { //if alarm button is pressed anew, min threshold 50 for debouncing (despite pull down) 
     digitalWrite(HOT_LED, !digitalRead(HOT_LED));       //toggled the LED state
