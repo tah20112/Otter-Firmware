@@ -1,4 +1,4 @@
-
+#include "pitches.h" // buzzer reference
 
 //7-Seg. Libraries
 #include <Wire.h>
@@ -13,24 +13,23 @@
 #define SERIESRESISTOR 10000    // the value of the 'other' resistor
 
 //Button Variables
-int PWR_BUTTON_PIN = A3; 
-int ALARM_BUTTON_PIN = A2; 
-int UP_BUTTON_PIN = A1; 
-int DOWN_BUTTON_PIN = A0;
+const int PWR_BUTTON_PIN = A3; 
+const int ALARM_BUTTON_PIN = A2; 
+const int UP_BUTTON_PIN = A1; 
+const int DOWN_BUTTON_PIN = A0;
 
 int power_last_state = 0; // last read on power button (analog 0 - 1023)
 int alarm_last_state = 0; //last read on alarm button (analog 0 - 1023)
 
 //LED Variables
-int HOT_LED = 11; // LED pin for "too hot" alarm
-int COLD_LED = 12; // LED pin for "too cold" alarm
-//int BUZZER = 13; // Buzzer pin
+const int HOT_LED = 11; // LED pin for "too hot" alarm
+const int COLD_LED = 12; // LED pin for "too cold" alarm
+const int BUZZER = 13; // Buzzer pin
 
 //7-Seg. Display Variables
 Adafruit_7segment matrix = Adafruit_7segment();
 boolean sevseg_on = false;
 
-//int SEVSEG_PWR_PIN = A5; 
 // temp parameters
 int setTemp = 34; 
 int upTemp = 0;
@@ -48,6 +47,12 @@ long prevMs = 0; // set up timer
 
 int dispDelay = 1000; // milliseconds to allow set temp interactions without displaying current temperature (simulated multi-threading)
 int debouncer = 400; // milliseconds to delay code for debouncing
+
+// Alarm Parameters
+boolean soundAlarm = false;
+int melody[] = { NOTE_C4, NOTE_C4, NOTE_C4 };
+int noteDurations[] = { 4, 4, 4};  // note durations: 4 = quarter note, 8 = eighth note, etc.
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -110,9 +115,13 @@ void loop() {
   int alarm_current = analogRead(ALARM_BUTTON_PIN);  // read alarm button state
   if (alarm_current >= 1000 && alarm_last_state <= 50) { //if alarm button is pressed anew, min threshold 50 for debouncing (despite pull down) 
     digitalWrite(HOT_LED, !digitalRead(HOT_LED));       //toggled the LED state
+    soundAlarm = !soundAlarm; 
   }
   alarm_last_state = alarm_current; // refresh button state in memory
-  
+  if(soundAlarm){
+      medAlarm(); //NOTE: HOLD DOWN PWR/ ALARM BUTTON TO TURN OFF ALARM WHEN STARTED
+      delay(100); 
+  }
 }
 
 void setTempUpdate() {
@@ -123,6 +132,7 @@ void setTempUpdate() {
   matrix.writeDigitRaw(3,0);
   matrix.writeDisplay(); // refreshes display with new content
   delay(debouncer);
+  return;
 }
 
 void currentTempUpdate() {
@@ -135,6 +145,7 @@ void currentTempUpdate() {
   matrix.writeDigitNum(1, currentTemp_ones, true); 
   matrix.writeDigitNum(3, currentTemp_dec); 
   matrix.writeDisplay(); 
+  return;
 }
 
 float get_temperature() { //Receive temperature measurement
@@ -168,5 +179,22 @@ void turnOffDisp(){
       matrix.writeDigitRaw(i,0); 
     }
     matrix.writeDisplay();
+    return;
 }
+
+void medAlarm(){ 
+    for (int thisNote = 0; thisNote < 3; thisNote++) {
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(BUZZER, melody[thisNote], noteDuration);
+      // to distinguish the notes, set a minimum time between them.
+      // the note's duration + 30% seems to work well:
+      int pauseBetweenNotes = noteDuration * 1.30;
+      delay(pauseBetweenNotes);
+      // stop the tone playing:
+      noTone(BUZZER);
+    }
+    return;
+  }
+
+
 
