@@ -13,10 +13,10 @@
 #define SERIESRESISTOR 10000    // the value of the 'other' resistor
 
 //Button Variables
-const int PWR_BUTTON_PIN = A0; 
-const int ALARM_BUTTON_PIN = A1; 
-const int UP_BUTTON_PIN = A2; 
-const int DOWN_BUTTON_PIN = A3;
+const int PWR_BUTTON_PIN = A2; 
+const int ALARM_BUTTON_PIN = A3; 
+const int UP_BUTTON_PIN = A1; 
+const int DOWN_BUTTON_PIN = A0;
 
 int power_last_state = 0; // last read on power button (analog 0 - 1023)
 int alarm_last_state = 0; //last read on alarm button (analog 0 - 1023)
@@ -25,8 +25,8 @@ int alarm_last_state = 0; //last read on alarm button (analog 0 - 1023)
 const int HOT_LED = 11; // LED pin for "too hot" alarm
 const int COLD_LED = 12; // LED pin for "too cold" alarm
 //const int BUZZER = 13; // Buzzer pin
-const int leftPin = 10; // alarm pin 1 for differential drive
-const int rightPin = 13; // alarm pin 2 for differential drive
+const int leftPin = 9; 
+const int rightPin = 12;
 
 //7-Seg. Display Variables
 Adafruit_7segment matrix = Adafruit_7segment();
@@ -63,11 +63,9 @@ void setup() {
   pinMode(COLD_LED, OUTPUT); 
   pinMode(leftPin, OUTPUT); 
   pinMode(rightPin, OUTPUT);
-  pinMode(THERMISTOR_PIN, INPUT);
   // pinMode(BUZZER, OUTPUT); 
 //  pinMode(SEVSEG_PWR_PIN, OUTPUT); 
 
-  analogReference(EXTERNAL);
   //7-Seg. Display
   #ifndef __AVR_ATtiny85_
   Serial.println("7 Segment Backpack Test");
@@ -177,9 +175,7 @@ float get_temperature() { //Receive temperature measurement
   steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
   steinhart = 1.0 / steinhart;                 // Invert
   steinhart -= 273.15;                         // convert to C
-
-  Serial.print("Temp: ");
-  Serial.println(steinhart);
+  
   return steinhart;
 }
 void turnOffDisp(){

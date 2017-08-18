@@ -32,18 +32,18 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-
+/*
   upTemp = analogRead(A0); // get signal fom membrane switch (up arrow)
   if (upTemp >= 1000 && setTemp < maxTemp) {  // condition that membrane switch is high (pressed) and that the desired set temp is less than max
 //    insert debouncing code here if necessary
     setTemp = setTemp+1; // increment set temperature by 1
-    delay(400); // debouncing
+    delay(4000); // debouncing
   }
 //  Serial.print("Analog Read: "); 
 //  Serial.print(upTemp); 
 //  Serial.print(" Set Temp: "); 
 //  Serial.println(setTemp);   
-  
+*/  
   matrix.print(setTemp);
   matrix.writeDisplay(); // refreshes display with new content
 }
