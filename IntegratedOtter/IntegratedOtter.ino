@@ -25,7 +25,7 @@ int alarm_last_state = 0; //last read on alarm button (analog 0 - 1023)
 const int HOT_LED = 11; // LED pin for "too hot" alarm
 const int COLD_LED = 12; // LED pin for "too cold" alarm
 //const int BUZZER = 13; // Buzzer pin
-const int leftPin = 9; 
+const int leftPin = 10; 
 const int rightPin = 13;
 
 //7-Seg. Display Variables
@@ -56,9 +56,9 @@ boolean soundAlarm = false;
 //int noteDurations[] = { 4, 4, 4};  // note durations: 4 = quarter note, 8 = eighth note, etc.
 
 //PID Variables
-float current_temperature; // temperature measurement
+//float current_temperature; // temperature measurement
 float current_error; //how far form the target temperature we are.
-float target_temperature = 32; //set temperature target (can also be set with the interface. Remember that the steady-state temperature will be 1 deg. less
+//float target_temperature = 32; //set temperature target (can also be set with the interface. Remember that the steady-state temperature will be 1 deg. less
 float old_temp; // Parameter for derivative term
 int controlSignal; //Sum of Pterm and (future) Dterm
 
@@ -75,6 +75,7 @@ void setup() {
   pinMode(leftPin, OUTPUT); 
   pinMode(rightPin, OUTPUT);
   pinMode(THERMISTOR_PIN, INPUT); 
+  pinMode(bassinetPin, OUTPUT);
   
   analogReference(EXTERNAL); 
   setPwmFrequency(bassinetPin,1); // Bassinet hums out of hearing range @ 61,250 Hz http://playground.arduino.cc/Code/PwmFrequency
@@ -126,6 +127,10 @@ void loop() {
       showCurrentTemp = true; // if so, allow current temp display again
     }
     PID_loop();
+      Serial.print("Target: "); Serial.print(setTemp);
+  Serial.print("  Current: "); Serial.print(currentTemp);
+  Serial.print("  Error: "); Serial.print(current_error);
+  Serial.print("  Control Sig:  "); Serial.println(controlSignal);
   }
 
 
@@ -138,7 +143,7 @@ void loop() {
   }
   alarm_last_state = alarm_current; // refresh button state in memory
   if(soundAlarm){
-      diffDriveAlarm(3,5); //NOTE: HOLD DOWN PWR/ ALARM BUTTON TO TURN OFF ALARM WHEN STARTED
+//      diffDriveAlarm(3,5); //NOTE: HOLD DOWN PWR/ ALARM BUTTON TO TURN OFF ALARM WHEN STARTED
 //      delay(100); 
   }
 }
@@ -243,8 +248,8 @@ void diffDriveTone (int period, int duration) {
 }
 
 void PID_loop() {
-  current_error = target_temperature - current_temperature; //calculate error
-  controlSignal = round(150*current_error+10*(current_temperature-old_temp)); // P + D control. But the D control is set to 0, becuase it doesn't really do anything yet. It's based on temperature change. Need to avg set of temp values to see more change for Dterm to actually be effective.
+  current_error = setTemp - currentTemp; //calculate error
+  controlSignal = round(150*current_error+10*(currentTemp-old_temp)); // P + D control. But the D control is set to 0, becuase it doesn't really do anything yet. It's based on temperature change. Need to avg set of temp values to see more change for Dterm to actually be effective.
   if (controlSignal < 0){ //When control signal becomes negative, set it to zero.
     controlSignal = 0; 
   }
