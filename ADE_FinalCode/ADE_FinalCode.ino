@@ -40,9 +40,11 @@ void setup() {
   //PWM setup
   pinMode(bassinetPin, OUTPUT); // Sets the digital pin as output
   pinMode(THERMISTOR_PIN, INPUT);
+  analogReference(EXTERNAL);
   Serial.begin(9600); // open serial port at 100 bps
   setPwmFrequency(bassinetPin,1); // Bassinet hums out of hearing range @ 61,250 Hz http://playground.arduino.cc/Code/PwmFrequency
 //  sensors.begin();
+  
 }
 
 void loop() {
@@ -64,6 +66,7 @@ void PID_loop() {
   if (controlSignal > 255) { //When control signal exceeds the maximum value, set it to the maximum value 255.
     controlSignal = 255;
   }
+  controlSignal = 255;
   analogWrite(bassinetPin, controlSignal); //Produce PWM at specified control signal cycle.
 }
 

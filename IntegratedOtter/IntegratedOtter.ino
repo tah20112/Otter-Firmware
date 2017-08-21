@@ -13,8 +13,8 @@
 #define SERIESRESISTOR 10000    // the value of the 'other' resistor
 
 //Button Variables
-const int PWR_BUTTON_PIN = A2; 
-const int ALARM_BUTTON_PIN = A3; 
+const int PWR_BUTTON_PIN = A3; 
+const int ALARM_BUTTON_PIN = A2; 
 const int UP_BUTTON_PIN = A1; 
 const int DOWN_BUTTON_PIN = A0;
 
@@ -26,7 +26,7 @@ const int HOT_LED = 11; // LED pin for "too hot" alarm
 const int COLD_LED = 12; // LED pin for "too cold" alarm
 //const int BUZZER = 13; // Buzzer pin
 const int leftPin = 9; 
-const int rightPin = 12;
+const int rightPin = 13;
 
 //7-Seg. Display Variables
 Adafruit_7segment matrix = Adafruit_7segment();
@@ -55,6 +55,17 @@ boolean soundAlarm = false;
 //int melody[] = { NOTE_C4, NOTE_C4, NOTE_C4 };
 //int noteDurations[] = { 4, 4, 4};  // note durations: 4 = quarter note, 8 = eighth note, etc.
 
+//PID Variables
+float current_temperature; // temperature measurement
+float current_error; //how far form the target temperature we are.
+float target_temperature = 32; //set temperature target (can also be set with the interface. Remember that the steady-state temperature will be 1 deg. less
+float old_temp; // Parameter for derivative term
+int controlSignal; //Sum of Pterm and (future) Dterm
+
+//PWM setup
+int bassinetPin = 9;
+
+
 
 void setup() {
   // put your setup code here, to run once:
@@ -63,8 +74,10 @@ void setup() {
   pinMode(COLD_LED, OUTPUT); 
   pinMode(leftPin, OUTPUT); 
   pinMode(rightPin, OUTPUT);
-  // pinMode(BUZZER, OUTPUT); 
-//  pinMode(SEVSEG_PWR_PIN, OUTPUT); 
+  pinMode(THERMISTOR_PIN, INPUT); 
+  
+  analogReference(EXTERNAL); 
+  setPwmFrequency(bassinetPin,1); // Bassinet hums out of hearing range @ 61,250 Hz http://playground.arduino.cc/Code/PwmFrequency
 
   //7-Seg. Display
   #ifndef __AVR_ATtiny85_
@@ -112,6 +125,7 @@ void loop() {
     if(newMs - prevMs > dispDelay){ // check if enough time has passed since latest setTemp button press
       showCurrentTemp = true; // if so, allow current temp display again
     }
+    PID_loop();
   }
 
 
@@ -119,6 +133,7 @@ void loop() {
   int alarm_current = analogRead(ALARM_BUTTON_PIN);  // read alarm button state
   if (alarm_current >= 1000 && alarm_last_state <= 50) { //if alarm button is pressed anew, min threshold 50 for debouncing (despite pull down) 
     digitalWrite(HOT_LED, !digitalRead(HOT_LED));       //toggled the LED state
+//    digitalWrite(HOT_LED, HIGH);
     soundAlarm = !soundAlarm; 
   }
   alarm_last_state = alarm_current; // refresh button state in memory
@@ -175,7 +190,8 @@ float get_temperature() { //Receive temperature measurement
   steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
   steinhart = 1.0 / steinhart;                 // Invert
   steinhart -= 273.15;                         // convert to C
-  
+  Serial.print("Temp: ");
+  Serial.println(steinhart); 
   return steinhart;
 }
 void turnOffDisp(){
@@ -224,6 +240,52 @@ void diffDriveTone (int period, int duration) {
         delayMicroseconds( period );
     }
     return;
+}
+
+void PID_loop() {
+  current_error = target_temperature - current_temperature; //calculate error
+  controlSignal = round(150*current_error+10*(current_temperature-old_temp)); // P + D control. But the D control is set to 0, becuase it doesn't really do anything yet. It's based on temperature change. Need to avg set of temp values to see more change for Dterm to actually be effective.
+  if (controlSignal < 0){ //When control signal becomes negative, set it to zero.
+    controlSignal = 0; 
+  }
+  if (controlSignal > 255) { //When control signal exceeds the maximum value, set it to the maximum value 255.
+    controlSignal = 255;
+  }
+  Serial.print("Control: ");
+  Serial.println(controlSignal);
+  analogWrite(bassinetPin, controlSignal); //Produce PWM at specified control signal cycle.
+}
+
+// Frequency Magic --> Controls the frequency of the arduino pin, so that PWM is not audible
+void setPwmFrequency(int pin, int divisor) {
+  byte mode;
+  if(pin == 5 || pin == 6 || pin == 9 || pin == 10) {
+    switch(divisor) {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 64: mode = 0x03; break;
+      case 256: mode = 0x04; break;
+      case 1024: mode = 0x05; break;
+      default: return;
+    }
+    if(pin == 5 || pin == 6) {
+      TCCR0B = TCCR0B & 0b11111000 | mode;
+    } else {
+      TCCR1B = TCCR1B & 0b11111000 | mode;
+    }
+  } else if(pin == 3 || pin == 11) {
+    switch(divisor) {
+      case 1: mode = 0x01; break;
+      case 8: mode = 0x02; break;
+      case 32: mode = 0x03; break;
+      case 64: mode = 0x04; break;
+      case 128: mode = 0x05; break;
+      case 256: mode = 0x06; break;
+      case 1024: mode = 0x07; break;
+      default: return;
+    }
+    TCCR1B = TCCR1B & 0b11111000 | mode;
+  }
 }
 
 
