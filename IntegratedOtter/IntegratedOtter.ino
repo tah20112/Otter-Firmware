@@ -24,9 +24,8 @@ int alarm_last_state = 0; //last read on alarm button (analog 0 - 1023)
 //LED Variables
 const int HOT_LED = 11; // LED pin for "too hot" alarm
 const int COLD_LED = 12; // LED pin for "too cold" alarm
-//const int BUZZER = 13; // Buzzer pin
-const int leftPin = 10; 
-const int rightPin = 13;
+const int buzzPin1 = 10; 
+const int buzzPin2 = 13;
 
 //7-Seg. Display Variables
 Adafruit_7segment matrix = Adafruit_7segment();
@@ -52,28 +51,25 @@ int debouncer = 400; // milliseconds to delay code for debouncing
 
 // Alarm Parameters
 boolean soundAlarm = false;
-//int melody[] = { NOTE_C4, NOTE_C4, NOTE_C4 };
-//int noteDurations[] = { 4, 4, 4};  // note durations: 4 = quarter note, 8 = eighth note, etc.
-
+/* // OLD CODE USING PITCHES.H TO CONTROL NOTES
+int melody[] = { NOTE_C4, NOTE_C4, NOTE_C4 };
+int noteDurations[] = { 4, 4, 4};  // note durations: 4 = quarter note, 8 = eighth note, etc.
+*/
 //PID Variables
-//float current_temperature; // temperature measurement
 float current_error; //how far form the target temperature we are.
-//float target_temperature = 32; //set temperature target (can also be set with the interface. Remember that the steady-state temperature will be 1 deg. less
 float old_temp; // Parameter for derivative term
 int controlSignal; //Sum of Pterm and (future) Dterm
 
 //PWM setup
 int bassinetPin = 9;
 
-
-
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600); 
   pinMode(HOT_LED, OUTPUT); //sets LED pins to output
   pinMode(COLD_LED, OUTPUT); 
-  pinMode(leftPin, OUTPUT); 
-  pinMode(rightPin, OUTPUT);
+  pinMode(buzzPin1, OUTPUT); 
+  pinMode(buzzPin2, OUTPUT);
   pinMode(THERMISTOR_PIN, INPUT); 
   pinMode(bassinetPin, OUTPUT);
   
@@ -126,11 +122,11 @@ void loop() {
     if(newMs - prevMs > dispDelay){ // check if enough time has passed since latest setTemp button press
       showCurrentTemp = true; // if so, allow current temp display again
     }
-    PID_loop();
-      Serial.print("Target: "); Serial.print(setTemp);
-  Serial.print("  Current: "); Serial.print(currentTemp);
-  Serial.print("  Error: "); Serial.print(current_error);
-  Serial.print("  Control Sig:  "); Serial.println(controlSignal);
+    PID_loop(); // update heating control system
+    Serial.print("Target: "); Serial.print(setTemp);
+    Serial.print("  Current: "); Serial.print(currentTemp);
+    Serial.print("  Error: "); Serial.print(current_error);
+    Serial.print("  Control Sig:  "); Serial.println(controlSignal);
   }
 
 
@@ -138,22 +134,21 @@ void loop() {
   int alarm_current = analogRead(ALARM_BUTTON_PIN);  // read alarm button state
   if (alarm_current >= 1000 && alarm_last_state <= 50) { //if alarm button is pressed anew, min threshold 50 for debouncing (despite pull down) 
     digitalWrite(HOT_LED, !digitalRead(HOT_LED));       //toggled the LED state
-//    digitalWrite(HOT_LED, HIGH);
     soundAlarm = !soundAlarm; 
   }
   alarm_last_state = alarm_current; // refresh button state in memory
   if(soundAlarm){
       diffDriveAlarm(3,5); //NOTE: HOLD DOWN PWR/ ALARM BUTTON TO TURN OFF ALARM WHEN STARTED
-      delay(100); 
+      delay(100); // NOTE: Timing is finicky with this buzzer-- do not remove this delay, or the buzzer will stop getting 
   }
 }
 
 void setTempUpdate() {
-  int setTemp_tens = setTemp/10; 
-  int setTemp_ones = setTemp%10;
-  matrix.writeDigitNum(0, setTemp_tens);
-  matrix.writeDigitNum(1, setTemp_ones, false);
-  matrix.writeDigitRaw(3,0);
+  int setTemp_tens = setTemp/10; //get tens place of setTemp, separate setTemp into two digits to write to seven segment display
+  int setTemp_ones = setTemp%10; //get ones place of setTemp
+  matrix.writeDigitNum(0, setTemp_tens); // write tens digit
+  matrix.writeDigitNum(1, setTemp_ones, false); // write ones digit, clear decimal place
+  matrix.writeDigitRaw(3,0); // clear third digit
   matrix.writeDisplay(); // refreshes display with new content
   delay(debouncer);
   return;
@@ -162,28 +157,28 @@ void setTempUpdate() {
 void currentTempUpdate() {
   currentTemp = get_temperature();
   int temp = (int)currentTemp;
-  int currentTemp_tens = temp/10; 
-  int currentTemp_ones = temp%10; 
-  int currentTemp_dec = (currentTemp-temp)*10;
-  matrix.writeDigitNum(0, currentTemp_tens); 
-  matrix.writeDigitNum(1, currentTemp_ones, true); 
-  matrix.writeDigitNum(3, currentTemp_dec); 
-  matrix.writeDisplay(); 
+  int currentTemp_tens = temp/10; // separate currentTemp into three digits, tens place
+  int currentTemp_ones = temp%10; // ones place
+  int currentTemp_dec = (currentTemp-temp)*10; // tenth place
+  matrix.writeDigitNum(0, currentTemp_tens); // write tens place
+  matrix.writeDigitNum(1, currentTemp_ones, true); // write ones place, with a decimal following
+  matrix.writeDigitNum(3, currentTemp_dec); // write tenths place
+  matrix.writeDisplay(); // update display
   return;
 }
 
 float get_temperature() { //Receive temperature measurement
   uint8_t i;
   float average; 
-  for (i=0; i< NUMSAMPLES; i++) {
+  for (i=0; i< NUMSAMPLES; i++) {         // store NUMSAMPLES of thermistor readings
     sample[i]= analogRead(THERMISTOR_PIN);
-    delay(50);
+    delay(50); // 50 millisecond delay between readings
   }
   for (i=0; i< NUMSAMPLES; i++) {
-     average += sample[i];
+     average += sample[i];  // add all readings
   }
-  average /= NUMSAMPLES;
-  average = 1023 / average - 1;
+  average /= NUMSAMPLES; // divide to get average
+  average = 1023 / average - 1;       // rest of function is copied from the last part of https://learn.adafruit.com/thermistor/using-a-thermistor
   average = SERIESRESISTOR / average;
   Serial.print("Thermistor resistance "); 
   Serial.println(average);
@@ -201,31 +196,32 @@ float get_temperature() { //Receive temperature measurement
 }
 void turnOffDisp(){
     for (int i=0; i<=4; i++){
-      matrix.writeDigitRaw(i,0); 
+      matrix.writeDigitRaw(i,0);  // clear each digit
     }
-    matrix.writeDisplay();
+    matrix.writeDisplay(); // update display
     return;
 }
 
-//void medAlarm(){ 
-//    for (int thisNote = 0; thisNote < 3; thisNote++) {
-//      int noteDuration = 1000 / noteDurations[thisNote];
-//      tone(BUZZER, melody[thisNote], noteDuration);
-//      // to distinguish the notes, set a minimum time between them.
-//      // the note's duration + 30% seems to work well:
-//      int pauseBetweenNotes = noteDuration * 1.30;
-//      delay(pauseBetweenNotes);
-//      // stop the tone playing:
-//      noTone(BUZZER);
-//    }
-//    return;
-//  }
-
+/*
+ * // OLD ALARM CODE WITH MORE CONTROL OF NOTES, IN CASE IT'S NECESSARY
+void medAlarm(){ 
+    for (int thisNote = 0; thisNote < 3; thisNote++) {
+      int noteDuration = 1000 / noteDurations[thisNote];
+      tone(BUZZER, melody[thisNote], noteDuration);
+      // to distinguish the notes, set a minimum time between them.
+      // the note's duration + 30% seems to work well:
+      int pauseBetweenNotes = noteDuration * 1.30;
+      delay(pauseBetweenNotes);
+      // stop the tone playing:
+      noTone(BUZZER);
+    }
+    return;
+  }
+*/ 
 void diffDriveAlarm (int repeats, int duration){
   int i, r; 
   for (r=0; r<repeats; r++){
     for (i=0; i<duration; i++){
-//      diffDriveTone(2093,1000000);
       diffDriveTone(2270,1000000); // 440 Hz A for 1 sec
     }
     delay(300);
@@ -239,9 +235,9 @@ void diffDriveTone (int period, int duration) {
     int i;
     
     for (i=0 ; i < duration ; i+=period) {
-        digitalWrite( leftPin, phase & 1 ); // bit bang to double volume -- "differential drive"
+        digitalWrite( buzzPin1, phase & 1 ); // bit bang to double volume -- "differential drive"
         phase++;
-        digitalWrite( rightPin, phase & 1 );
+        digitalWrite( buzzPin2, phase & 1 );
         delayMicroseconds( period );
     }
     return;
@@ -261,7 +257,7 @@ void PID_loop() {
   analogWrite(bassinetPin, controlSignal); //Produce PWM at specified control signal cycle.
 }
 
-// Frequency Magic --> Controls the frequency of the arduino pin, so that PWM is not audible
+// Frequency Magic --> Controls the frequency of the arduino pin, so that PWM is not audible, from Trong
 void setPwmFrequency(int pin, int divisor) {
   byte mode;
   if(pin == 5 || pin == 6 || pin == 9 || pin == 10) {
