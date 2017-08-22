@@ -59,7 +59,7 @@ void loop() {
 
 void PID_loop() {
   current_error = target_temperature - current_temperature; //calculate error
-  controlSignal = round(150*current_error+10*(current_temperature-old_temp)); // P + D control. But the D control is set to 0, becuase it doesn't really do anything yet. It's based on temperature change. Need to avg set of temp values to see more change for Dterm to actually be effective.
+  controlSignal = round(150*current_error+1.5*(current_temperature-old_temp)); // P + D control. But the D control is set to 0, becuase it doesn't really do anything yet. It's based on temperature change. Need to avg set of temp values to see more change for Dterm to actually be effective.
   if (controlSignal < 0){ //When control signal becomes negative, set it to zero.
     controlSignal = 0; 
   }
