@@ -22,8 +22,8 @@ int power_last_state = 0; // last read on power button (analog 0 - 1023)
 int alarm_last_state = 0; //last read on alarm button (analog 0 - 1023)
 
 //LED Variables
-const int HOT_LED = 11; // LED pin for "too hot" alarm
-const int COLD_LED = 12; // LED pin for "too cold" alarm
+const int TCO_BAD = 12; // LED pin for "too hot" alarm
+const int COLD_LED = 11; // LED pin for "too cold" alarm
 const int buzzPin1 = 10; 
 const int buzzPin2 = 13;
 
@@ -66,7 +66,7 @@ int bassinetPin = 9;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(9600); 
-  pinMode(HOT_LED, OUTPUT); //sets LED pins to output
+  pinMode(TCO_BAD, OUTPUT); //sets LED pins to output
   pinMode(COLD_LED, OUTPUT); 
   pinMode(buzzPin1, OUTPUT); 
   pinMode(buzzPin2, OUTPUT);
@@ -133,7 +133,7 @@ void loop() {
 // Alarm button code -- WILL ALARM EVEN WHEN DISPLAY IS NOT ON
   int alarm_current = analogRead(ALARM_BUTTON_PIN);  // read alarm button state
   if (alarm_current >= 1000 && alarm_last_state <= 50) { //if alarm button is pressed anew, min threshold 50 for debouncing (despite pull down) 
-    digitalWrite(HOT_LED, !digitalRead(HOT_LED));       //toggled the LED state
+    digitalWrite(COLD_LED, !digitalRead(COLD_LED));       //toggled the LED state
     soundAlarm = !soundAlarm; 
   }
   alarm_last_state = alarm_current; // refresh button state in memory
