@@ -11,7 +11,7 @@
 //DallasTemperature sensors(&oneWire);
 
 // which analog pin to connect
-#define THERMISTOR_PIN A3
+#define THERMISTOR_PIN A3 
 // resistance at 25 degrees C
 #define THERMISTORNOMINAL 10000      
 // temp. for nominal resistance (almost always 25 C)
